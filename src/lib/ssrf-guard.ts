@@ -67,7 +67,16 @@ function ipv4InBlocked(ip: string): boolean {
 }
 
 function ipv6InBlocked(ip: string): boolean {
-  const lower = ip.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  const bare = ip.replace(/^\[/, '').replace(/\]$/, '');
+  // DNS answers and direct callers need the same canonical form as URL
+  // hosts. Otherwise expanded/zero-padded spellings bypass the prefixes
+  // below (for example 0:0:0:0:0:0:0:1 and 2001:0db8::1).
+  let lower: string;
+  try {
+    lower = new URL(`http://[${bare}]/`).hostname.slice(1, -1).toLowerCase();
+  } catch {
+    return true; // Fail closed on invalid or scoped IPv6 answers.
+  }
   // Exact-match singletons first
   if (lower === '::' || lower === '::1') return true;
   for (const prefix of IPV6_BLOCK_PREFIXES) {
